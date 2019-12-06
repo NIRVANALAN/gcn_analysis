@@ -1,6 +1,5 @@
 # %matplotlib inline
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import figure
 import networkx as nx
 import randomcolor
 import numpy as np
@@ -33,7 +32,7 @@ def load_label(name, root, mode='raw', print_label=False):
     if graph_label.shape == 2:
         graph_label = np.argmax(graph_label, axis=1)
     node_pos = get_node_pos(graph_label, mode)
-    return graph_label. node_pos
+    return graph_label, node_pos
 
 
 def print_label_table(label):
@@ -50,11 +49,13 @@ def print_label_table(label):
     pass
 
 
-def get_colors(label_number=41):
+def get_colors(label_number=41, binary=True):
     import randomcolor
     rand_color = randomcolor.RandomColor()
     colors = rand_color.generate(count=label_number)
-    return colors
+    if binary:
+        b_colors = {'true':'green','false':'r'}
+    return colors, b_colors
 
 # colors = get_colors(41)
 
@@ -83,10 +84,11 @@ def get_node_pos(cluster_label, mode='raw', predict=None):
 # options = {"node_size": 40, "alpha": 0.8}
 
 
-def plot_cluster(cluster_G, node_pos, colors, options={"node_size": 40, "alpha": 0.8},  figsize=(8, 6), spring_k=0.15):
-    pos = nx.spring_layout(cluster_G, k=spring_k)
+def plot_cluster(graph, node_pos, colors, options={"node_size": 40, "alpha": 0.8},  figsize=(8, 6), spring_k=0.15):
+    pos = nx.spring_layout(graph, k=spring_k)
+    from matplotlib.pyplot import figure
     figure(num=None, figsize=figsize, dpi=150, facecolor='w', edgecolor='k')
     for node_label in node_pos:
         nx.draw_networkx_nodes(
-            cluster_G, pos, nodelist=node_pos[node_label], node_color=colors[node_label], **options)
-    nx.draw_networkx_edges(cluster_G, pos, width=0.2, alpha=0.5)
+            graph, pos, nodelist=node_pos[node_label], node_color=colors[node_label], **options)
+    nx.draw_networkx_edges(graph, pos, width=0.2, alpha=0.5)
