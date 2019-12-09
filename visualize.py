@@ -1,11 +1,17 @@
 # %matplotlib inline
+from typing import Dict, Tuple, List, Sequence, Optional
 import matplotlib.pyplot as plt
 import networkx as nx
 import randomcolor
 import numpy as np
+import torch
 
+'''
+TODO add thicker edge for error case
+TODO add graph construction function with error case as center
+'''
 
-def load_graph(name, root, print_shape=True):
+def load_graph_from_npz(name, root, print_shape=True):
     import scipy.sparse as sp
     import networkx as nx
     from pathlib import PurePath
@@ -19,7 +25,7 @@ def load_graph(name, root, print_shape=True):
     return part_adj, graph
 
 
-def load_label(name, root, mode='raw', print_label=False):
+def load_label_from_npy(name, root, mode='raw', print_label=False):
     import numpy as np
     from pathlib import PurePath
     path = PurePath(root, name)
@@ -49,13 +55,18 @@ def print_label_table(label):
     pass
 
 
-def get_colors(label_number=41, binary=True):
+def get_colors(label_number: int, mode: str):
     import randomcolor
     rand_color = randomcolor.RandomColor()
-    colors = rand_color.generate(count=label_number)
-    if binary:
-        b_colors = {'true':'green','false':'r'}
-    return colors, b_colors
+    if mode == 'diff':
+        colors = {'train': 'grey', 'pred_train': 'green', 'pred_false': 'r'}
+    elif mode == 'raw':
+        colors = rand_color.generate(count=label_number)
+    elif mode == 'train_test':
+        colors = {'train': 'grey', 'test': 'black'}
+    else:
+        raise NotImplementedError
+    return colors
 
 # colors = get_colors(41)
 
@@ -63,29 +74,56 @@ def get_colors(label_number=41, binary=True):
 # cluster_G = nx.from_scipy_sparse_matrix(part_adj)
 
 
-def get_node_pos(cluster_label, mode='raw', predict=None):
+def get_node_pos(labels: Optional[np.ndarray] = None, sg_nodes: List = None, idx_test: Optional[List] = None, mode='raw', predict: Optional[np.ndarray] = None) -> Dict:
+    '''
+    1. get the whole graph: raw
+    2. train and test node
+    3. right and wrong node
+    '''
+    if type(labels) is torch.Tensor:
+        labels = labels.cpu().numpy()
+    if type(predict) is torch.Tensor:
+        predict = predict.cpu().numpy()
+
     node_pos = {}
+    # np.argwhere(labels == label).flatten().tolist()})
     if mode == 'raw':
-        for label in set(cluster_label):
-            node_pos.update(
-                {label: np.argwhere(cluster_label == label).flatten().tolist()})
+        if sg_nodes is not None:
+            for label in set(labels[sg_nodes]):
+                node_pos.update(
+                    {label: [node for node in sg_nodes if labels[node] == label]})
+        else:
+            for label in set(labels):
+                node_pos.update(
+                    {label: np.argwhere(labels == label).flatten().tolist()})
+
+    elif mode == 'train_test':
+        assert idx_test is not None and sg_nodes is not None
+        test_sg_nodes = list(set(sg_nodes).intersection(idx_test))
+        train_sg_nodes = list(set(sg_nodes).difference(test_sg_nodes))
+        node_pos.update({'train': train_sg_nodes, 'test': test_sg_nodes})
+        pass
+
     elif mode == 'diff':
-        assert predict is not None
-        true = np.argwhere(cluster_label == predict).flatten().tolist()
-        false = set(range(len(cluster_label))).difference(true)
-        node_pos.update({'true': true, 'false': false})
+        assert predict is not None and sg_nodes is not None and idx_test is not None
+        test_sg_nodes = list(set(sg_nodes).intersection(idx_test))
+        train_sg_nodes = list(set(sg_nodes).difference(test_sg_nodes))
+        true = list(set(idx_test[np.argwhere(
+            labels[idx_test] == predict).flatten().tolist()]).intersection(test_sg_nodes))
+        false = list(set(test_sg_nodes).difference(true))
+        node_pos.update(
+            {'train': train_sg_nodes, 'pred_true': true, 'pred_false': false})
 
     else:
         raise NotImplementedError(f'mode: {mode} unrecognized')
 
     return node_pos
 
-
 # options = {"node_size": 40, "alpha": 0.8}
 
 
-def plot_cluster(graph, node_pos, colors, options={"node_size": 40, "alpha": 0.8},  figsize=(8, 6), spring_k=0.15):
-    pos = nx.spring_layout(graph, k=spring_k)
+# pos = nx.spring_layout(graph, k=spring_k)
+def plot_cluster(graph, node_pos, colors, pos, options={"node_size": 40, "alpha": 0.8},  figsize=(8, 6), spring_k=0.15):
     from matplotlib.pyplot import figure
     figure(num=None, figsize=figsize, dpi=150, facecolor='w', edgecolor='k')
     for node_label in node_pos:
