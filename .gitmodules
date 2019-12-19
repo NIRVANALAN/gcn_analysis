@@ -1,0 +1,6 @@
+[submodule "models/GCNs/gcn"]
+	path = models/GCNs/gcn
+	url = https://github.com/tkipf/gcn.git
+[submodule "models/GCNs/pygat"]
+	path = models/GCNs/pygat
+	url = https://github.com/Diego999/pyGAT.git
