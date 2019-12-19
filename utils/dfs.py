@@ -14,7 +14,7 @@ graph = nx.Graph({
     'C': ['F'],
     'D': ['G'],
     'E': ['F', 'Z'],
-    'Z': ['T','H'],
+    'Z': ['T', 'H'],
     # 'H': [1,2,3,4,5],
     'F': [],
     'G': ['C']
@@ -38,20 +38,6 @@ def dfs_recursively(graph: nx.Graph, root, visited, level=0):
             visited[neighbor] = level + 1
     return visited
 
-
-def bfs_queue(graph: nx.Graph, root, level=0, max_level=3):
-    import collections
-    queue, res = collections.deque([(root, 0)]), {}
-    while queue:
-        node, level = queue.popleft()
-        if level > max_level:
-            break
-        if node not in res: 
-            res[node] = level
-        for neighbor in list(graph[node]):
-            if neighbor not in res:
-                queue.append([neighbor, level+1])
-    return res
 
 
 # # Driver Code

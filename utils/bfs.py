@@ -31,4 +31,22 @@ def bfs(graph, initial):
                 queue.append(neighbour)
     return visited
  
-print(bfs(graph,'A'))
+# print(bfs(graph,'A'))
+
+def bfs_queue(graph: nx.Graph, root, max_level=3, level=0):
+    import collections
+    queue, res = collections.deque([(root, 0)]), []
+    nodes = set(res)
+    while queue:
+        node, level = queue.popleft()
+        if level > max_level:
+            break
+        if node not in nodes:
+            nodes.update(node)
+            if len(res) < level+1:
+                res.insert(level, [])
+            res[level].append(node)
+        for neighbor in list(graph[node]):
+            if neighbor not in res:
+                queue.append([neighbor, level+1])
+    return res, nodes
