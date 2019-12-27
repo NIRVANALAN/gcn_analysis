@@ -17,8 +17,7 @@ import seaborn as sns
 
 from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
-from nn_local import GCNConv
-# from torch_geometric.nn import GCNConv, ChebConv  # noqa
+from torch_geometric.nn import GCNConv, ChebConv  # noqa
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--use_gdc', action='store_true',

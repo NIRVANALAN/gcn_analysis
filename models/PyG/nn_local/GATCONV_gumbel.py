@@ -78,7 +78,7 @@ class GATConvGumbel(MessagePassing):
         glorot(self.att)
         zeros(self.bias)
 
-    def forward(self, x, edge_index, size=None):
+    def forward(self, x, edge_index, tau=1,size=None):
         """"""
         if size is None and torch.is_tensor(x):
             edge_index, _ = remove_self_loops(edge_index)
@@ -90,9 +90,9 @@ class GATConvGumbel(MessagePassing):
             x = (None if x[0] is None else torch.matmul(x[0], self.weight),
                  None if x[1] is None else torch.matmul(x[1], self.weight))
 
-        return self.propagate(edge_index, size=size, x=x)
+        return self.propagate(edge_index, size=size, x=x, tau=tau)
 
-    def message(self, edge_index_i, x_i, x_j, size_i):
+    def message(self, edge_index_i, tau, x_i, x_j, size_i ):
         # Compute attention coefficients.
         x_j = x_j.view(-1, self.heads, self.out_channels)
         if x_i is None:
@@ -102,7 +102,7 @@ class GATConvGumbel(MessagePassing):
             alpha = (torch.cat([x_i, x_j], dim=-1) * self.att).sum(dim=-1)
 
         alpha = F.leaky_relu(alpha, self.negative_slope)
-        alpha = gumbal_softmax(alpha, edge_index_i, size_i)
+        alpha = gumbal_softmax(alpha, edge_index_i, size_i, tau=tau)
 
         # Sample attention coefficients stochastically.
         alpha = F.dropout(alpha, p=self.dropout, training=self.training)
@@ -131,7 +131,7 @@ def sample_gumbel(shape, eps=1e-20):
     return -torch.log(-torch.log(U + eps) + eps)
 
 
-def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False, eps=1e-20):
+def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False, eps=1e-20, test=False):
     r"""Computes a sparsely evaluated gumbel softmax.
     Given a value tensor :attr:`src`, this function first groups the values
     along the first dimension based on the indices specified in :attr:`index`,
@@ -145,17 +145,19 @@ def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False, eps=1e-20):
 
     :rtype: :class:`Tensor`
     """
-
-    gat_nei_out = torch.log(softmax(src, index, num_nodes) + eps)
-    # out is the categorical distribution
-    # sparse distribution
-    # gumbels = -torch.empty_like(src).exponential_().log()
-    gat_nei_out += sample_gumbel(gat_nei_out.shape)
-
-    # logits = gat_nei_out.log()
-    # gumbels = (logits + gumbels) / tau
-    # import pdb; pdb.set_trace()
-    out = softmax(gat_nei_out / tau, index, num_nodes)
-    if hard:
-        pass
+    # test nodes
+    test_node = [500]
+    test_idx = torch.where(index==test_node[0])[0].tolist()
+    out = softmax(src, index, num_nodes)
+    class_prob = out[test_idx]
+    if tau:
+        out = torch.log(out + eps)
+        # out is the categorical distribution
+        out += sample_gumbel(out.shape)
+        out = softmax(out / tau, index, num_nodes)
+        if test:
+            class_prob_after_tau = out[test_idx]
+            print(class_prob)
+            print(class_prob_after_tau)
+            import pdb; pdb.set_trace()
     return out
