@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
 # from torch_geometric.nn import GATConv
-from nn import l as GATConv
-# from torch_geometric.nn import GATConv
+from nn_local import GATConvGumbel as GATConv
+ # from torch_geometric.nn import GATConv
 
 # dataset = 'Cora'
 dataset = 'Pubmed'

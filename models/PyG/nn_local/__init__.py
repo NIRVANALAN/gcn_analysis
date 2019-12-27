@@ -4,11 +4,13 @@
 # import torch_geometric.datasets
 # import torch_geometric.transforms
 # import torch_geometric.utils
-from .GATCONV_gubbel import GATConvGumbol
+from .GATCONV_gumbel import GATConvGumbel
+from .gcn_conv import GCNConv
 
 # __version__ = '1.3.2'
 
 __all__ = [
-    'GATCONV_gubbol'
+    'GATCONV_gumbel',
+    'GCNConv'
 ]
 

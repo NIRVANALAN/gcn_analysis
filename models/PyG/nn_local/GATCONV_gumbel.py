@@ -1,3 +1,5 @@
+from torch_geometric.utils.num_nodes import maybe_num_nodes
+from torch_scatter import scatter_max, scatter_add
 import torch
 from torch.nn import Parameter
 import torch.nn.functional as F
@@ -6,7 +8,7 @@ from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
 from torch_geometric.nn.inits import glorot, zeros
 
 
-class GATConvGumbol(MessagePassing):
+class GATConvGumbel(MessagePassing):
     r"""The graph attentional operator from the `"Graph Attention Networks"
     <https://arxiv.org/abs/1710.10903>`_ paper
 
@@ -48,7 +50,7 @@ class GATConvGumbol(MessagePassing):
 
     def __init__(self, in_channels, out_channels, heads=1, concat=True,
                  negative_slope=0.2, dropout=0, bias=True, **kwargs):
-        super(GATConvGumbol, self).__init__(aggr='add', **kwargs)
+        super(GATConvGumbel, self).__init__(aggr='add', **kwargs)
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -87,7 +89,8 @@ class GATConvGumbol(MessagePassing):
             x = (None if x[0] is None else torch.matmul(x[0], self.weight),
                  None if x[1] is None else torch.matmul(x[1], self.weight))
 
-        import pdb; pdb.set_trace()
+        import pdb
+        pdb.set_trace()
         return self.propagate(edge_index, size=size, x=x)
 
     def message(self, edge_index_i, x_i, x_j, size_i):
@@ -99,7 +102,8 @@ class GATConvGumbol(MessagePassing):
             x_i = x_i.view(-1, self.heads, self.out_channels)
             alpha = (torch.cat([x_i, x_j], dim=-1) * self.att).sum(dim=-1)
 
-        import pdb; pdb.set_trace()
+        import pdb
+        pdb.set_trace()
         alpha = F.leaky_relu(alpha, self.negative_slope)
         alpha = gumbal_softmax(alpha, edge_index_i, size_i)
 
@@ -124,12 +128,11 @@ class GATConvGumbol(MessagePassing):
                                              self.in_channels,
                                              self.out_channels, self.heads)
 
+def sample_gumbel(shape, eps=1e-20):
+    U = torch.rand(shape).cuda()
+    return -torch.log(-torch.log(U + eps) + eps)
 
-from torch_scatter import scatter_max, scatter_add
-from torch_geometric.utils.num_nodes import maybe_num_nodes
-
-
-def gumbal_softmax(src, index, tau=1, num_nodes=None, hard=False):
+def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False):
     r"""Computes a sparsely evaluated gumbel softmax.
     Given a value tensor :attr:`src`, this function first groups the values
     along the first dimension based on the indices specified in :attr:`index`,
@@ -144,20 +147,19 @@ def gumbal_softmax(src, index, tau=1, num_nodes=None, hard=False):
     :rtype: :class:`Tensor`
     """
 
-    # num_nodes = maybe_num_nodes(index, num_nodes)
-
-    # out = src - scatter_max(src, index, dim=0, dim_size=num_nodes)[0][index]
-    # out = out.exp()
-    # out = out / (
-    #     scatter_add(out, index, dim=0, dim_size=num_nodes)[index] + 1e-16)
     gat_nei_out = softmax(src, index, num_nodes)
     # out is the categorical distribution
-    import pdb; pdb.set_trace()
-    gumbels = -torch.empty_like(src).exponential_().log()
+    # sparse distribution
+    # gumbels = -torch.empty_like(src).exponential_().log()
+    gat_nei_out += sample_gumbel(gat_nei_out.shape)
+    # for node in range(num_nodes):
+    #     node_nei_idx = torch.where(index==node)[0]
+    #     gat_nei_out[node_nei_idx] += -torch.empty((node_nei_idx.shape[0], src.shape[1])).exponential_().log().to(src.device)
 
-    logits = out.log()
-    gumbels = (logits + gumbels) / tau
-    out = softmax(gat_nei_out, index, num_nodes)
+    # logits = gat_nei_out.log()
+    # gumbels = (logits + gumbels) / tau
+    import pdb; pdb.set_trace()
+    out = softmax(gat_nei_out / tau, index, num_nodes)
     if hard:
         pass
     return out
