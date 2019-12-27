@@ -5,6 +5,7 @@ from torch.nn import Parameter
 import torch.nn.functional as F
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
+# from torch_scatter.composite import scatter_softmax
 from torch_geometric.nn.inits import glorot, zeros
 
 
@@ -89,8 +90,6 @@ class GATConvGumbel(MessagePassing):
             x = (None if x[0] is None else torch.matmul(x[0], self.weight),
                  None if x[1] is None else torch.matmul(x[1], self.weight))
 
-        import pdb
-        pdb.set_trace()
         return self.propagate(edge_index, size=size, x=x)
 
     def message(self, edge_index_i, x_i, x_j, size_i):
@@ -102,8 +101,6 @@ class GATConvGumbel(MessagePassing):
             x_i = x_i.view(-1, self.heads, self.out_channels)
             alpha = (torch.cat([x_i, x_j], dim=-1) * self.att).sum(dim=-1)
 
-        import pdb
-        pdb.set_trace()
         alpha = F.leaky_relu(alpha, self.negative_slope)
         alpha = gumbal_softmax(alpha, edge_index_i, size_i)
 
@@ -128,11 +125,13 @@ class GATConvGumbel(MessagePassing):
                                              self.in_channels,
                                              self.out_channels, self.heads)
 
+
 def sample_gumbel(shape, eps=1e-20):
     U = torch.rand(shape).cuda()
     return -torch.log(-torch.log(U + eps) + eps)
 
-def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False):
+
+def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False, eps=1e-20):
     r"""Computes a sparsely evaluated gumbel softmax.
     Given a value tensor :attr:`src`, this function first groups the values
     along the first dimension based on the indices specified in :attr:`index`,
@@ -147,18 +146,15 @@ def gumbal_softmax(src, index, num_nodes=None, tau=1, hard=False):
     :rtype: :class:`Tensor`
     """
 
-    gat_nei_out = softmax(src, index, num_nodes)
+    gat_nei_out = torch.log(softmax(src, index, num_nodes) + eps)
     # out is the categorical distribution
     # sparse distribution
     # gumbels = -torch.empty_like(src).exponential_().log()
     gat_nei_out += sample_gumbel(gat_nei_out.shape)
-    # for node in range(num_nodes):
-    #     node_nei_idx = torch.where(index==node)[0]
-    #     gat_nei_out[node_nei_idx] += -torch.empty((node_nei_idx.shape[0], src.shape[1])).exponential_().log().to(src.device)
 
     # logits = gat_nei_out.log()
     # gumbels = (logits + gumbels) / tau
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     out = softmax(gat_nei_out / tau, index, num_nodes)
     if hard:
         pass

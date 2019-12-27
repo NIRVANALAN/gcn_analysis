@@ -9,8 +9,8 @@ import torch_geometric.transforms as T
 from nn_local import GATConvGumbel as GATConv
  # from torch_geometric.nn import GATConv
 
-# dataset = 'Cora'
-dataset = 'Pubmed'
+dataset = 'Cora'
+# dataset = 'Pubmed'
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', dataset)
 dataset = Planetoid(path, dataset, T.NormalizeFeatures())
 data = dataset[0]
