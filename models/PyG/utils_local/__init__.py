@@ -7,12 +7,14 @@
 # from .GATCONV_gumbel import GATConvGumbel
 # from .gcn_conv import GCNConv
 from .gumbel import gumbel_softmax, sample_gumbel, StepTau
+from .losses import ClassBoundaryLoss
 # __version__ = '1.3.2'
 
 __all__ = [
    'gumbel_softmax',
    'sample_gumbel',
-   'StepTau' 
+   'StepTau',
+   'ClassBoundaryLoss'
     # 'GCNConv'
 ]
 

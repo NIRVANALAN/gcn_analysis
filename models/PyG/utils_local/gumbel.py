@@ -12,7 +12,7 @@ def sample_gumbel(shape, eps=1e-20):
     return -torch.log(-torch.log(U + eps) + eps)
 
 
-def gumbel_softmax(src, index, num_nodes=None, tau=0, hard=False, eps=1e-20, test=False, monitor:List=None, epoch=0, layer=0):
+def gumbel_softmax(src, index, num_nodes=None, tau=0, hard=False, eps=1e-20, test=False, monitor: List = None, epoch=0, layer=0, select_topk=-1):
     r"""Computes a sparsely evaluated gumbel softmax.
     Given a value tensor :attr:`src`, this function first groups the values
     along the first dimension based on the indices specified in :attr:`index`,
@@ -39,19 +39,20 @@ def gumbel_softmax(src, index, num_nodes=None, tau=0, hard=False, eps=1e-20, tes
             node_out = out[node_idx]
             sorted_probs, _ = torch.sort(node_out, 0, descending=True)
             sorted_list = sorted_probs[:2, :].tolist()
-            if len(sorted_list) != 2: # only one neighbor
+            if len(sorted_list) != 2:  # only one neighbor
                 sorted_list.append([0.]*len(sorted_list[0]))
                 # import pdb; pdb.set_trace()
             monitor[layer][epoch].append(sorted_list)
-            # import pdb; pdb.set_trace()
-    if tau:
+            # if epoch > 100 and layer>0:
+            #     import pdb; pdb.set_trace()
+    if tau > 0:
         # test=True
         out = torch.log(out + eps)
         # out is the categorical distribution
         out += sample_gumbel(out.shape)
         out = softmax(out / tau, index, num_nodes)
         # if test or tau<=0.1:
-        if test: 
+        if test:
             class_prob_after_tau = out[test_idx]
             print(class_prob)
             print(class_prob_after_tau)

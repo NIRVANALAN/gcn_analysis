@@ -19,7 +19,7 @@ class GATConvGumbel(MessagePassing):
         \mathbf{x}^{\prime}_i = \alpha_{i,i}\mathbf{\Theta}\mathbf{x}_{i} +
         \sum_{j \in \mathcal{N}(i)} \alpha_{i,j}\mathbf{\Theta}\mathbf{x}_{j},
 
-    where the attention coefficients :math:`\alpha_{i,j}` are computed as
+    where the alpha coefficients :math:`\alpha_{i,j}` are computed as
 
     .. math::
         \alpha_{i,j} =
@@ -43,7 +43,7 @@ class GATConvGumbel(MessagePassing):
         negative_slope (float, optional): LeakyReLU angle of the negative
             slope. (default: :obj:`0.2`)
         dropout (float, optional): Dropout probability of the normalized
-            attention coefficients which exposes each node to a stochastically
+            alpha coefficients which exposes each node to a stochastically
             sampled neighborhood during training. (default: :obj:`0`)
         bias (bool, optional): If set to :obj:`False`, the layer will not learn
             an additive bias. (default: :obj:`True`)
@@ -80,7 +80,7 @@ class GATConvGumbel(MessagePassing):
         glorot(self.att)
         zeros(self.bias)
 
-    def forward(self, x, edge_index, tau=0, epoch=0, monitor_dict=None, size=None, layer=0):
+    def forward(self, x, edge_index, tau=0, epoch=0, monitor_dict=None, size=None, layer=0, select_top_k=-1, train_mask=None):
         """"""
         if size is None and torch.is_tensor(x):
             edge_index, _ = remove_self_loops(edge_index)
@@ -92,10 +92,10 @@ class GATConvGumbel(MessagePassing):
             x = (None if x[0] is None else torch.matmul(x[0], self.weight),
                  None if x[1] is None else torch.matmul(x[1], self.weight))
 
-        return self.propagate(edge_index, size=size, x=x, tau=tau, epoch=epoch, monitor_dict=monitor_dict, layer=layer)
+        return self.propagate(edge_index, size=size, x=x, tau=tau, epoch=epoch, monitor_dict=monitor_dict, layer=layer, select_top_k=select_top_k, train_mask=train_mask)
 
-    def message(self, edge_index_i, tau, epoch, monitor_dict, layer, x_i, x_j, size_i):
-        # Compute attention coefficients.
+    def message(self, edge_index_i, tau, epoch, monitor_dict, layer, x_i, x_j, size_i, select_top_k, train_mask):
+        # Compute alpha coefficients.
         x_j = x_j.view(-1, self.heads, self.out_channels)
         if x_i is None:
             alpha = (x_j * self.att[:, :, self.out_channels:]).sum(dim=-1)
@@ -106,12 +106,28 @@ class GATConvGumbel(MessagePassing):
         alpha = F.leaky_relu(alpha, self.negative_slope)
         alpha = gumbel_softmax(alpha, edge_index_i,
                                size_i, tau=tau, epoch=epoch, monitor=monitor_dict, layer=layer)
+        # select topk
+        if select_top_k > 0:
+            # out[topk_att_inx[5:]] = 0
+            for idx in range(max(edge_index_i)):
+                # node_idx = self.idx_mask[idx]
+                node_idx = idx
+                neibs_coo = torch.where(edge_index_i == node_idx)[0]
+                if len(neibs_coo) < select_top_k:
+                    continue
+                topk_att_val, _ = torch.sort(
+                    alpha[neibs_coo], dim=0, descending=True)
+                # import pdb; pdb.set_trace()
+                alpha[neibs_coo] = torch.where(alpha[neibs_coo] < topk_att_val[select_top_k-1], torch.tensor(0.).to(alpha.device), alpha[neibs_coo])
 
-        # Sample attention coefficients stochastically.
-        alpha = F.dropout(alpha, p=self.dropout, training=self.training)
+            # re-softmax?
+            # out[topk_att_inx[:5]] = F.softmax(topk_att_val[:5])
+        # Sample alpha coefficients stochastically.
+        # alpha = F.dropout(alpha, p=self.dropout, training=self.training) # scale 1/1-p in training, close
 
         alpha = alpha.view(-1, self.heads, 1)
-        return x_j * alpha
+        self.alpha = alpha.squeeze(-1)
+        return x_j * alpha 
 
     def update(self, aggr_out):
         if self.concat is True:
