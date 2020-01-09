@@ -123,7 +123,7 @@ class GATConvGumbel(MessagePassing):
             # re-softmax?
             # out[topk_att_inx[:5]] = F.softmax(topk_att_val[:5])
         # Sample alpha coefficients stochastically.
-        # alpha = F.dropout(alpha, p=self.dropout, training=self.training) # scale 1/1-p in training, close
+        alpha = F.dropout(alpha, p=self.dropout, training=self.training) # scale 1/1-p in training, close
 
         alpha = alpha.view(-1, self.heads, 1)
         self.alpha = alpha.squeeze(-1)
