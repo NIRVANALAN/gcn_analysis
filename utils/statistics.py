@@ -1,6 +1,7 @@
 from bfs import bfs_queue
 from typing import List
 import numpy as np
+import dgl
 import networkx as nx
 from tqdm import  tqdm
 
@@ -41,11 +42,11 @@ def graph_degree(graph: nx.Graph):
         'min_deg': min(degree.values)
     }
 
-def neighbor_same_label(graph: nx.Graph, train_mask: np.array, labels: np.array):
+def neighbor_same_label_nxgraph(graph: nx.Graph, train_mask: np.array, labels: np.array):
     """!
     :param graph: networkx graph
     """
-    train_nodes = np.nonzero(train_mask)
+    train_nodes = np.nonzero(train_mask)[0]
     same_label_neib_percentage = {}
     for node in tqdm(train_nodes):
         neibs = list(graph.neighbors(node))
@@ -53,3 +54,10 @@ def neighbor_same_label(graph: nx.Graph, train_mask: np.array, labels: np.array)
     return same_label_neib_percentage
 
 
+def neighbor_same_label_dglgraph(graph: dgl.DGLGraph, train_mask: np.array, labels: np.array):
+    train_nodes = np.nonzero(train_mask)[0]
+    same_label_neib_percentage = {}
+    for node in tqdm(train_nodes):
+        neibs = list(graph.successors(node))
+        same_label_neib_percentage[node] = ((labels[node]==labels[neibs]).mean(), len(neibs))
+    return same_label_neib_percentage
