@@ -1,4 +1,8 @@
 from bfs import bfs_queue
+from typing import List
+import numpy as np
+import networkx as nx
+from tqdm import  tqdm
 
 def statistics(graph, nodes, level=6):
     from texttable import Texttable
@@ -21,3 +25,31 @@ def statistics(graph, nodes, level=6):
     table.add_rows(stat)
     print(table.draw())
     return results
+
+
+# degree
+def graph_degree(graph: nx.Graph):
+    '''
+    @param graph: networkx graph
+    '''
+    if type(graph) is nx.DiGraph:
+        graph = graph.to_undirected()    
+    degree = dict(graph.degree)
+    return {
+        'max_deg': max(degree.values),
+        'avg_deg': np.mean(tuple(degree.values)),
+        'min_deg': min(degree.values)
+    }
+
+def neighbor_same_label(graph: nx.Graph, train_mask: np.array, labels: np.array):
+    """!
+    :param graph: networkx graph
+    """
+    train_nodes = np.nonzero(train_mask)
+    same_label_neib_percentage = {}
+    for node in tqdm(train_nodes):
+        neibs = list(graph.neighbors(node))
+        same_label_neib_percentage[node] = ((labels[node]==labels[neibs]).mean(), len(neibs))
+    return same_label_neib_percentage
+
+
