@@ -1,9 +1,10 @@
 from bfs import bfs_queue
 from typing import List
 import numpy as np
-import dgl
 import networkx as nx
 from tqdm import  tqdm
+
+import dgl
 
 def statistics(graph, nodes, level=6):
     from texttable import Texttable
@@ -61,3 +62,12 @@ def neighbor_same_label_dglgraph(graph: dgl.DGLGraph, train_mask: np.array, labe
         neibs = list(graph.successors(node))
         same_label_neib_percentage[node] = ((labels[node]==labels[neibs]).mean(), len(neibs))
     return same_label_neib_percentage
+
+
+def connecvity_of_graph(g:nx.Graph):
+    return {
+        'is_connected':nx.is_connected(g),
+        'number_cc': nx.number_connected_components(g),
+        'cc': sorted(nx.connected_components(g), key=len, reverse=True)
+    }
+
