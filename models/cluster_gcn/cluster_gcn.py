@@ -13,9 +13,9 @@ from dgl import DGLGraph
 from dgl.data import register_data_args
 from torch.utils.tensorboard import SummaryWriter
 
-from modules import GraphSAGE
-from sampler import ClusterIter
-from utils import Logger, evaluate, save_log_dir, load_data
+from .modules import GraphSAGE
+from .sampler import ClusterIter
+from .utils import Logger, evaluate, save_log_dir, load_data
 
 
 def main(args):

@@ -4,7 +4,7 @@ import random
 import dgl.function as fn
 import torch
 
-from partition_utils import *
+from .partition_utils import *
 
 
 class ClusterIter(object):
