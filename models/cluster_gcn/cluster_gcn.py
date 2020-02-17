@@ -13,9 +13,10 @@ from dgl import DGLGraph
 from dgl.data import register_data_args
 from torch.utils.tensorboard import SummaryWriter
 
-from .modules import GraphSAGE
-from .sampler import ClusterIter
-from .utils import Logger, evaluate, save_log_dir, load_data
+from modules import GraphSAGE
+from sampler import ClusterIter
+from utils import Logger, evaluate, save_log_dir, load_data
+
 
 
 def main(args):
@@ -99,12 +100,11 @@ def main(args):
     g.ndata['labels'] = labels
     g.ndata['train_mask'] = train_mask
     print('labels shape:', labels.shape)
-
+    import pdb; pdb.set_trace()
     cluster_iterator = ClusterIter(
         args.dataset, g, args.psize, args.batch_size, train_nid, use_pp=args.use_pp)
 
     print("features shape, ", features.shape)
-
     model = GraphSAGE(in_feats,
                       args.n_hidden,
                       n_classes,

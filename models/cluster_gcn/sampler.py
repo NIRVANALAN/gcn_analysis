@@ -4,7 +4,7 @@ import random
 import dgl.function as fn
 import torch
 
-from .partition_utils import *
+from partition_utils import *
 
 
 class ClusterIter(object):
@@ -41,6 +41,7 @@ class ClusterIter(object):
         self.psize = psize
         self.batch_size = batch_size
         # cache the partitions of known datasets&partition number
+        # import pdb; pdb.set_trace()
         if dn:
             fn = os.path.join('./datasets/', dn + '_{}.npy'.format(psize))
             if os.path.exists(fn):
