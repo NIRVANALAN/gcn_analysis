@@ -100,7 +100,6 @@ def main(args):
     g.ndata['labels'] = labels
     g.ndata['train_mask'] = train_mask
     print('labels shape:', labels.shape)
-    import pdb; pdb.set_trace()
     cluster_iterator = ClusterIter(
         args.dataset, g, args.psize, args.batch_size, train_nid, use_pp=args.use_pp)
 
@@ -158,7 +157,7 @@ def main(args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # in PPI case, `log_every` is chosen to log one time per epoch. 
+            # in PPI case, `log_every` is chosen to log one time per epoch.
             # Choose your log freq dynamically when you want more info within one epoch
             if j % args.log_every == 0:
                 print(f"epoch:{epoch}/{args.n_epochs}, Iteration {j}/"
