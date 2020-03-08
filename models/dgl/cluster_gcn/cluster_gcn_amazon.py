@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 import random
+import pdb
 
 import numpy as np
 import networkx as nx
@@ -10,12 +11,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dgl import DGLGraph
-from dgl.data import register_data_args
+from dgl.data import register_data_args, load_graphs
+from dgl.transform import add_self_loop
 from torch.utils.tensorboard import SummaryWriter
 
 from modules import GraphSAGE
 from sampler import ClusterIter
-from utils import Logger, evaluate, save_log_dir, load_data, load_graphs
+from utils import Logger, evaluate, save_log_dir, load_data
 
 
 
@@ -30,35 +32,32 @@ def main(args):
     multitask = args.dataset in multitask_data
 
     # load and preprocess dataset
-    data = load_data(args)
+    assert args.dataset == 'amazon2m'
+    g, graph_labels = load_graphs(
+        '/yushi/dataset/Amazon2M/Amazon2M_dglgraph.bin')
+    assert len(g) == 1
+    g = g[0]
+    data = g.ndata
+    labels = torch.LongTensor(data['label'])
+    if hasattr(torch, 'BoolTensor'):
+        train_mask = data['train_mask'].bool()
+        val_mask = data['val_mask'].bool()
+        test_mask = data['test_mask'].bool()
 
-    train_nid = np.nonzero(data.train_mask)[0].astype(np.int64)
+    train_nid = np.nonzero(train_mask.cpu().numpy())[0].astype(np.int64)
 
     # Normalize features
+    features = torch.FloatTensor(data['feat'])
     if args.normalize:
-        train_feats = data.features[train_nid]
+        train_feats = features[train_nid]
         scaler = sklearn.preprocessing.StandardScaler()
         scaler.fit(train_feats)
-        features = scaler.transform(data.features)
-    else:
-        features = data.features
-
+        features = scaler.transform(features)
     features = torch.FloatTensor(features)
-    if not multitask:
-        labels = torch.LongTensor(data.labels)
-    else:
-        labels = torch.FloatTensor(data.labels)
-    if hasattr(torch, 'BoolTensor'):
-        train_mask = torch.BoolTensor(data.train_mask)
-        val_mask = torch.BoolTensor(data.val_mask)
-        test_mask = torch.BoolTensor(data.test_mask)
-    else:
-        train_mask = torch.ByteTensor(data.train_mask)
-        val_mask = torch.ByteTensor(data.val_mask)
-        test_mask = torch.ByteTensor(data.test_mask)
+
     in_feats = features.shape[1]
-    n_classes = data.num_labels
-    n_edges = data.graph.number_of_edges()
+    n_classes = 47
+    n_edges = g.number_of_edges()
 
     n_train_samples = train_mask.int().sum().item()
     n_val_samples = val_mask.int().sum().item()
@@ -75,16 +74,15 @@ def main(args):
             n_val_samples,
             n_test_samples))
     # create GCN model
-    g = data.graph
-    if args.self_loop and not args.dataset.startswith('reddit'):
-        g.remove_edges_from(nx.selfloop_edges(g))
-        g.add_edges_from(zip(g.nodes(), g.nodes()))
+    if args.self_loop:
         print("adding self-loop edges")
-    g = DGLGraph(g, readonly=True)
+        g = add_self_loop(g)
+    # g = DGLGraph(g, readonly=True)
 
     # set device for dataset tensors
     if args.gpu < 0:
         cuda = False
+        raise ValueError('no cuda')
     else:
         cuda = True
         torch.cuda.set_device(args.gpu)

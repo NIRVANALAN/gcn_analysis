@@ -53,3 +53,10 @@ Note that the first run of provided script is considerably slow than reported in
 ./run_ppi.sh
 ```
 You should be able to see the final test F1 is around `Test F1-mic0.9924, Test F1-mac0.9917`. The training finished in 10 mins.
+
+| Model       | Settings      | GpuMemory(MB) | Acc   | Time/epoch(s) | Overall Time(s) |
+| ----------- | ------------- | ------------- | ----- | ------------- | --------------- |
+| GCN         | 1*16          | 9007          | 78.20 | 0.1935        | 37.4            |
+| GCN         | 1*64          | 12677         | 82.48 | 0.3195        | 162.1           |
+| GCN         | 1*128         | 14381         | 83.42 | 0.4318        | 198.61          |
+| cluster-gcn | 2*400(15k-10) |
