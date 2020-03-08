@@ -20,7 +20,6 @@ from sampler import ClusterIter
 from utils import Logger, evaluate, save_log_dir, load_data
 
 
-
 def main(args):
     torch.manual_seed(args.rnd_seed)
     np.random.seed(args.rnd_seed)
@@ -45,6 +44,7 @@ def main(args):
         test_mask = data['test_mask'].bool()
 
     train_nid = np.nonzero(train_mask.cpu().numpy())[0].astype(np.int64)
+    val_nid = np.nonzero(val_mask.cpu().numpy())[0].astype(np.int64)
 
     # Normalize features
     features = torch.FloatTensor(data['feat'])
@@ -69,10 +69,10 @@ def main(args):
     #Train samples %d
     #Val samples %d
     #Test samples %d""" %
-            (n_edges, n_classes,
-            n_train_samples,
-            n_val_samples,
-            n_test_samples))
+          (n_edges, n_classes,
+           n_train_samples,
+           n_val_samples,
+           n_test_samples))
     # create GCN model
     if args.self_loop:
         print("adding self-loop edges")
@@ -98,8 +98,10 @@ def main(args):
     g.ndata['labels'] = labels
     g.ndata['train_mask'] = train_mask
     print('labels shape:', labels.shape)
-    cluster_iterator = ClusterIter(
+    train_cluster_iterator = ClusterIter(
         args.dataset, g, args.psize, args.batch_size, train_nid, use_pp=args.use_pp)
+    val_cluster_iterator = ClusterIter(
+        args.dataset, g, args.psize_test, 1, val_nid, use_pp=args.use_pp)
 
     print("features shape, ", features.shape)
     model = GraphSAGE(in_feats,
@@ -141,7 +143,7 @@ def main(args):
     best_f1 = -1
 
     for epoch in range(args.n_epochs):
-        for j, cluster in enumerate(cluster_iterator):
+        for j, cluster in enumerate(train_cluster_iterator):
             # sync with upper level training graph
             cluster.copy_from_parent()
             model.train()
@@ -159,16 +161,30 @@ def main(args):
             # Choose your log freq dynamically when you want more info within one epoch
             if j % args.log_every == 0:
                 print(f"epoch:{epoch}/{args.n_epochs}, Iteration {j}/"
-                      f"{len(cluster_iterator)}:training loss", loss.item())
+                      f"{len(train_cluster_iterator)}:training loss", loss.item())
                 writer.add_scalar('train/loss', loss.item(),
-                                  global_step=j + epoch * len(cluster_iterator))
+                                  global_step=j + epoch * len(train_cluster_iterator))
         print("current memory:",
               torch.cuda.memory_allocated(device=pred.device) / 1024 / 1024)
 
         # evaluate
         if epoch % args.val_every == 0:
-            val_f1_mic, val_f1_mac = evaluate(
-                model, g, labels, val_mask, multitask)
+            total_f1_mic = []
+            total_f1_mac = []
+            for j, cluster in enumerate(train_cluster_iterator):
+                model.eval()
+                with torch.no_grad():
+                    logits = model(cluster)
+                    batch_labels = cluster.ndata['labels']
+                    # batch_val_mask = cluster.ndata['val_mask']
+                    val_f1_mic, val_f1_mac = calc_f1(batch_labels.cpu().numpy(),
+                                                     logits.cpu().numpy(), multitask)
+                    total_f1_mic.append(val_f1_mic)
+                    total_f1_mac.append(val_f1_mac)
+
+            val_f1_mic = np.mean(total_f1_mic)
+            val_f1_mac = np.mean(total_f1_mac)
+
             print(
                 "Val F1-mic{:.4f}, Val F1-mac{:.4f}". format(val_f1_mic, val_f1_mac))
             if val_f1_mic > best_f1:
@@ -186,11 +202,13 @@ def main(args):
     if args.use_val:
         model.load_state_dict(torch.load(os.path.join(
             log_dir, 'best_model.pkl')))
-    test_f1_mic, test_f1_mac = evaluate(
-        model, g, labels, test_mask, multitask)
-    print("Test F1-mic{:.4f}, Test F1-mac{:.4f}". format(test_f1_mic, test_f1_mac))
-    writer.add_scalar('test/f1-mic', test_f1_mic)
-    writer.add_scalar('test/f1-mac', test_f1_mac)
+    # test_f1_mic, test_f1_mac = evaluate(
+    #     model, g, labels, test_mask, multitask)
+    # print(
+    #     "Test F1-mic{:.4f}, Test F1-mac{:.4f}". format(test_f1_mic, test_f1_mac))
+    # writer.add_scalar('test/f1-mic', test_f1_mic)
+    # writer.add_scalar('test/f1-mac', test_f1_mac)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')
@@ -205,10 +223,12 @@ if __name__ == '__main__':
                         help="number of training epochs")
     parser.add_argument("--log-every", type=int, default=100,
                         help="number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=20,
+    parser.add_argument("--batch-size", type=int, default=10,
                         help="batch size")
-    parser.add_argument("--psize", type=int, default=1500,
+    parser.add_argument("--psize", type=int, default=15000,
                         help="partition number")
+    parser.add_argument("--psize-val", type=int, default=200,
+                        help="partition number val")
     parser.add_argument("--test-batch-size", type=int, default=1000,
                         help="test batch size")
     parser.add_argument("--n-hidden", type=int, default=16,
