@@ -101,7 +101,7 @@ def main(args):
     train_cluster_iterator = ClusterIter(
         args.dataset, g, args.psize, args.batch_size, train_nid, use_pp=args.use_pp)
     val_cluster_iterator = ClusterIter(
-        args.dataset, g, args.psize_val, 1, val_nid, use_pp=args.use_pp)
+        args.dataset, g, args.psize_val, 1, val_nid, use_pp=False)
 
     print("features shape, ", features.shape)
     model = GraphSAGE(in_feats,
@@ -171,18 +171,17 @@ def main(args):
         if epoch % args.val_every == 0:
             total_f1_mic = []
             total_f1_mac = []
+            model.eval()
             for j, cluster in enumerate(val_cluster_iterator):
-                pdb.set_trace()
                 cluster.copy_from_parent()
-                model.eval()
                 with torch.no_grad():
                     logits = model(cluster)
                     batch_labels = cluster.ndata['labels']
                     # batch_val_mask = cluster.ndata['val_mask']
                     val_f1_mic, val_f1_mac = calc_f1(batch_labels.cpu().numpy(),
-                                                     logits.cpu().numpy(), multitask)
-                    total_f1_mic.append(val_f1_mic)
-                    total_f1_mac.append(val_f1_mac)
+                                                        logits.cpu().numpy(), multitask)
+                total_f1_mic.append(val_f1_mic)
+                total_f1_mac.append(val_f1_mac)
 
             val_f1_mic = np.mean(total_f1_mic)
             val_f1_mac = np.mean(total_f1_mac)
