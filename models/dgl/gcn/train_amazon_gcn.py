@@ -95,6 +95,7 @@ def main(args):
 
     if cuda:
         model.cuda()
+    print(model)
     loss_fcn = torch.nn.CrossEntropyLoss()
 
     # use optimizer
@@ -142,7 +143,7 @@ if __name__ == '__main__':
                         help="learning rate")
     parser.add_argument("--n-epochs", type=int, default=200,
                         help="number of training epochs")
-    parser.add_argument("--n-hidden", type=int, default=16,
+    parser.add_argument("--n-hidden", type=int, default=64,
                         help="number of hidden gcn units")
     parser.add_argument("--n-layers", type=int, default=1,
                         help="number of hidden gcn layers")

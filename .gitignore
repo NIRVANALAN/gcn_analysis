@@ -107,3 +107,5 @@ data
 *.npy
 *.pkl
 log
+
+*.gpickle
