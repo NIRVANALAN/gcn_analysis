@@ -17,7 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from modules import GraphSAGE
 from sampler import ClusterIter
-from utils import Logger, evaluate, save_log_dir, load_data
+from utils import Logger, evaluate, save_log_dir, load_data, calc_f1
 
 
 def main(args):
@@ -101,7 +101,7 @@ def main(args):
     train_cluster_iterator = ClusterIter(
         args.dataset, g, args.psize, args.batch_size, train_nid, use_pp=args.use_pp)
     val_cluster_iterator = ClusterIter(
-        args.dataset, g, args.psize_test, 1, val_nid, use_pp=args.use_pp)
+        args.dataset, g, args.psize_val, 1, val_nid, use_pp=args.use_pp)
 
     print("features shape, ", features.shape)
     model = GraphSAGE(in_feats,
@@ -171,7 +171,9 @@ def main(args):
         if epoch % args.val_every == 0:
             total_f1_mic = []
             total_f1_mac = []
-            for j, cluster in enumerate(train_cluster_iterator):
+            for j, cluster in enumerate(val_cluster_iterator):
+                pdb.set_trace()
+                cluster.copy_from_parent()
                 model.eval()
                 with torch.no_grad():
                     logits = model(cluster)
@@ -215,7 +217,7 @@ if __name__ == '__main__':
     register_data_args(parser)
     parser.add_argument("--dropout", type=float, default=0.5,
                         help="dropout probability")
-    parser.add_argument("--gpu", type=int, default=-1,
+    parser.add_argument("--gpu", type=int, default=0,
                         help="gpu")
     parser.add_argument("--lr", type=float, default=3e-2,
                         help="learning rate")
