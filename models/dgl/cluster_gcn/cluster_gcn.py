@@ -12,11 +12,10 @@ import torch.nn.functional as F
 from dgl import DGLGraph
 from dgl.data import register_data_args
 from torch.utils.tensorboard import SummaryWriter
+from utils import Logger, evaluate, save_log_dir, load_data
 
 from modules import GraphSAGE
 from sampler import ClusterIter
-from utils import Logger, evaluate, save_log_dir, load_data, load_graphs
-
 
 
 def main(args):
@@ -70,10 +69,10 @@ def main(args):
     #Train samples %d
     #Val samples %d
     #Test samples %d""" %
-            (n_edges, n_classes,
-            n_train_samples,
-            n_val_samples,
-            n_test_samples))
+          (n_edges, n_classes,
+           n_train_samples,
+           n_val_samples,
+           n_test_samples))
     # create GCN model
     g = data.graph
     if args.self_loop and not args.dataset.startswith('reddit'):
@@ -182,7 +181,7 @@ def main(args):
             writer.add_scalar('val/f1-mac', val_f1_mac, global_step=epoch)
 
     end_time = time.time()
-    print(f'training using time {start_time-end_time}')
+    print(f'training using time {end_time-start_time}')
 
     # test
     if args.use_val:
@@ -190,9 +189,11 @@ def main(args):
             log_dir, 'best_model.pkl')))
     test_f1_mic, test_f1_mac = evaluate(
         model, g, labels, test_mask, multitask)
-    print("Test F1-mic{:.4f}, Test F1-mac{:.4f}". format(test_f1_mic, test_f1_mac))
+    print(
+        "Test F1-mic{:.4f}, Test F1-mac{:.4f}". format(test_f1_mic, test_f1_mac))
     writer.add_scalar('test/f1-mic', test_f1_mic)
     writer.add_scalar('test/f1-mac', test_f1_mac)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')
